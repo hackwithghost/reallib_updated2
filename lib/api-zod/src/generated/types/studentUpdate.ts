@@ -6,6 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
+export interface StudentUpdate {
+  name?: string;
+  rollNumber?: string;
+  phoneNumber?: string;
+  pin?: string;
+  isActive?: boolean;
+  isPaid?: boolean;
 }

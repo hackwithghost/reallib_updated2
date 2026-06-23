@@ -3,13 +3,28 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: RealLib - Library Seat Attendance Management System API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Admin authentication
+  - name: students
+    description: Student management
+  - name: seats
+    description: Seat management
+  - name: allocations
+    description: Seat allocation management
+  - name: attendance
+    description: Attendance management
+  - name: dashboard
+    description: Dashboard analytics
+  - name: reports
+    description: Reports and exports
+
 paths:
   /healthz:
     get:
@@ -24,6 +39,506 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # Auth
+  /reallib/auth/login:
+    post:
+      operationId: adminLogin
+      tags: [auth]
+      summary: Admin login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminLoginInput"
+      responses:
+        "200":
+          description: Login success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+
+  /reallib/auth/change-password:
+    post:
+      operationId: changePassword
+      tags: [auth]
+      summary: Change admin password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordInput"
+      responses:
+        "200":
+          description: Password changed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          description: Unauthorized
+
+  # Students
+  /reallib/students:
+    get:
+      operationId: listStudents
+      tags: [students]
+      summary: List all students
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: active
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of students
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Student"
+    post:
+      operationId: createStudent
+      tags: [students]
+      summary: Create a new student
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudentInput"
+      responses:
+        "201":
+          description: Student created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+
+  /reallib/students/{id}:
+    get:
+      operationId: getStudent
+      tags: [students]
+      summary: Get a student by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Student
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateStudent
+      tags: [students]
+      summary: Update a student
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudentUpdate"
+      responses:
+        "200":
+          description: Updated student
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+    delete:
+      operationId: deleteStudent
+      tags: [students]
+      summary: Delete a student
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /reallib/students/{id}/payment:
+    patch:
+      operationId: toggleStudentPayment
+      tags: [students]
+      summary: Toggle student paid/unpaid status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentToggleInput"
+      responses:
+        "200":
+          description: Updated student with new payment status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+        "404":
+          description: Not found
+
+  # Seats
+  /reallib/seats:
+    get:
+      operationId: listSeats
+      tags: [seats]
+      summary: List all seats
+      responses:
+        "200":
+          description: List of seats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Seat"
+    post:
+      operationId: createSeat
+      tags: [seats]
+      summary: Create a new seat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SeatInput"
+      responses:
+        "201":
+          description: Seat created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Seat"
+
+  /reallib/seats/{id}:
+    get:
+      operationId: getSeat
+      tags: [seats]
+      summary: Get a seat by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Seat with current allocation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeatDetail"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteSeat
+      tags: [seats]
+      summary: Delete a seat
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /reallib/seats/{id}/qr:
+    get:
+      operationId: getSeatQr
+      tags: [seats]
+      summary: Get QR code for a seat
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: QR code data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QrResponse"
+
+  # Allocations
+  /reallib/allocations:
+    get:
+      operationId: listAllocations
+      tags: [allocations]
+      summary: List all allocations
+      parameters:
+        - name: seatId
+          in: query
+          schema:
+            type: integer
+        - name: studentId
+          in: query
+          schema:
+            type: integer
+        - name: active
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of allocations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Allocation"
+    post:
+      operationId: createAllocation
+      tags: [allocations]
+      summary: Create a seat allocation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AllocationInput"
+      responses:
+        "201":
+          description: Allocation created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Allocation"
+        "400":
+          description: Overlapping slot or conflict
+
+  /reallib/allocations/{id}:
+    delete:
+      operationId: deleteAllocation
+      tags: [allocations]
+      summary: Delete an allocation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # Attendance
+  /reallib/attendance:
+    get:
+      operationId: listAttendance
+      tags: [attendance]
+      summary: List attendance logs
+      parameters:
+        - name: studentId
+          in: query
+          schema:
+            type: integer
+        - name: seatId
+          in: query
+          schema:
+            type: integer
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Attendance logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AttendanceLog"
+    post:
+      operationId: markAttendance
+      tags: [attendance]
+      summary: Mark attendance (student verifies credentials)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AttendanceInput"
+      responses:
+        "201":
+          description: Attendance marked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttendanceLog"
+        "400":
+          description: Already marked or invalid
+        "401":
+          description: Invalid credentials
+
+  # Dashboard
+  /reallib/dashboard/stats:
+    get:
+      operationId: getDashboardStats
+      tags: [dashboard]
+      summary: Get dashboard summary statistics
+      responses:
+        "200":
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /reallib/dashboard/unpaid-students:
+    get:
+      operationId: getUnpaidStudents
+      tags: [dashboard]
+      summary: Get list of unpaid students with days unpaid
+      responses:
+        "200":
+          description: List of unpaid students
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UnpaidStudent"
+
+  /reallib/dashboard/absent-students:
+    get:
+      operationId: getAbsentStudents
+      tags: [dashboard]
+      summary: Get allocated students who did not mark attendance on a given date
+      parameters:
+        - name: date
+          in: query
+          schema:
+            type: string
+          description: "Date in YYYY-MM-DD format (defaults to today)"
+      responses:
+        "200":
+          description: List of absent students
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AbsentStudent"
+
+  /reallib/dashboard/daily-attendance:
+    get:
+      operationId: getDailyAttendance
+      tags: [dashboard]
+      summary: Get daily attendance chart data
+      parameters:
+        - name: days
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Daily attendance data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DailyAttendancePoint"
+
+  /reallib/dashboard/weekly-attendance:
+    get:
+      operationId: getWeeklyAttendance
+      tags: [dashboard]
+      summary: Get weekly attendance chart data
+      responses:
+        "200":
+          description: Weekly attendance data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WeeklyAttendancePoint"
+
+  # Reports
+  /reallib/reports/attendance:
+    get:
+      operationId: getAttendanceReport
+      tags: [reports]
+      summary: Get filtered attendance report
+      parameters:
+        - name: studentId
+          in: query
+          schema:
+            type: integer
+        - name: seatId
+          in: query
+          schema:
+            type: integer
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [json, csv]
+      responses:
+        "200":
+          description: Report data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AttendanceLog"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +549,345 @@ components:
       required:
         - status
 
+    AdminLoginInput:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+
+    ChangePasswordInput:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword:
+          type: string
+        newPassword:
+          type: string
+
+    AuthResponse:
+      type: object
+      required: [token, admin]
+      properties:
+        token:
+          type: string
+        admin:
+          $ref: "#/components/schemas/Admin"
+
+    Admin:
+      type: object
+      required: [id, username]
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+
+    MessageResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+
+    Student:
+      type: object
+      required: [id, name, rollNumber, phoneNumber, isActive, isPaid, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        rollNumber:
+          type: string
+        phoneNumber:
+          type: string
+        isActive:
+          type: boolean
+        isPaid:
+          type: boolean
+        unpaidSince:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    StudentInput:
+      type: object
+      required: [name, rollNumber, phoneNumber, pin]
+      properties:
+        name:
+          type: string
+        rollNumber:
+          type: string
+        phoneNumber:
+          type: string
+        pin:
+          type: string
+        isActive:
+          type: boolean
+        isPaid:
+          type: boolean
+
+    StudentUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        rollNumber:
+          type: string
+        phoneNumber:
+          type: string
+        pin:
+          type: string
+        isActive:
+          type: boolean
+        isPaid:
+          type: boolean
+
+    PaymentToggleInput:
+      type: object
+      required: [isPaid]
+      properties:
+        isPaid:
+          type: boolean
+
+    UnpaidStudent:
+      type: object
+      required: [id, name, rollNumber, phoneNumber, isActive, isPaid, daysUnpaid, isOverdue, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        rollNumber:
+          type: string
+        phoneNumber:
+          type: string
+        isActive:
+          type: boolean
+        isPaid:
+          type: boolean
+        unpaidSince:
+          type: ["string", "null"]
+        daysUnpaid:
+          type: integer
+        isOverdue:
+          type: boolean
+        createdAt:
+          type: string
+
+    Seat:
+      type: object
+      required: [id, seatNumber, qrCode, createdAt]
+      properties:
+        id:
+          type: integer
+        seatNumber:
+          type: string
+        qrCode:
+          type: string
+        createdAt:
+          type: string
+
+    SeatInput:
+      type: object
+      required: [seatNumber]
+      properties:
+        seatNumber:
+          type: string
+
+    SeatDetail:
+      type: object
+      required: [id, seatNumber, qrCode, createdAt]
+      properties:
+        id:
+          type: integer
+        seatNumber:
+          type: string
+        qrCode:
+          type: string
+        createdAt:
+          type: string
+        currentAllocation:
+          $ref: "#/components/schemas/AllocationWithStudent"
+
+    AllocationWithStudent:
+      type: object
+      required: [id, seatId, studentId, startTime, endTime, isActive]
+      properties:
+        id:
+          type: integer
+        seatId:
+          type: integer
+        studentId:
+          type: integer
+        startTime:
+          type: string
+        endTime:
+          type: string
+        isActive:
+          type: boolean
+        student:
+          $ref: "#/components/schemas/Student"
+
+    QrResponse:
+      type: object
+      required: [seatId, seatNumber, qrDataUrl, qrUrl]
+      properties:
+        seatId:
+          type: integer
+        seatNumber:
+          type: string
+        qrDataUrl:
+          type: string
+        qrUrl:
+          type: string
+
+    Allocation:
+      type: object
+      required: [id, seatId, studentId, startTime, endTime, isActive, createdAt]
+      properties:
+        id:
+          type: integer
+        seatId:
+          type: integer
+        studentId:
+          type: integer
+        startTime:
+          type: string
+        endTime:
+          type: string
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+        seat:
+          $ref: "#/components/schemas/Seat"
+        student:
+          $ref: "#/components/schemas/Student"
+
+    AllocationInput:
+      type: object
+      required: [seatId, studentId, startTime, endTime]
+      properties:
+        seatId:
+          type: integer
+        studentId:
+          type: integer
+        startTime:
+          type: string
+        endTime:
+          type: string
+
+    AttendanceLog:
+      type: object
+      required: [id, studentId, seatId, date, markedAt, status, ipAddress, createdAt]
+      properties:
+        id:
+          type: integer
+        studentId:
+          type: integer
+        seatId:
+          type: integer
+        allocationId:
+          type: ["integer", "null"]
+        date:
+          type: string
+        markedAt:
+          type: string
+        status:
+          type: string
+          enum: [present, late]
+        ipAddress:
+          type: string
+        createdAt:
+          type: string
+        student:
+          $ref: "#/components/schemas/Student"
+        seat:
+          $ref: "#/components/schemas/Seat"
+
+    AttendanceInput:
+      type: object
+      required: [seatId, rollNumber, pin]
+      properties:
+        seatId:
+          type: integer
+        rollNumber:
+          type: string
+        pin:
+          type: string
+
+    DashboardStats:
+      type: object
+      required: [totalStudents, totalSeats, todayAttendance, activeAllocations, presentToday, lateToday, unpaidCount, overdueUnpaidCount, absentCount]
+      properties:
+        totalStudents:
+          type: integer
+        totalSeats:
+          type: integer
+        todayAttendance:
+          type: integer
+        activeAllocations:
+          type: integer
+        presentToday:
+          type: integer
+        lateToday:
+          type: integer
+        unpaidCount:
+          type: integer
+        overdueUnpaidCount:
+          type: integer
+        absentCount:
+          type: integer
+
+    AbsentStudent:
+      type: object
+      required: [id, name, rollNumber, phoneNumber, isActive, isPaid, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        rollNumber:
+          type: string
+        phoneNumber:
+          type: string
+        isActive:
+          type: boolean
+        isPaid:
+          type: boolean
+        seatId:
+          type: ["integer", "null"]
+        allocatedSlot:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    DailyAttendancePoint:
+      type: object
+      required: [date, count, present, late]
+      properties:
+        date:
+          type: string
+        count:
+          type: integer
+        present:
+          type: integer
+        late:
+          type: integer
+
+    WeeklyAttendancePoint:
+      type: object
+      required: [week, count, present, late]
+      properties:
+        week:
+          type: string
+        count:
+          type: integer
+        present:
+          type: integer
+        late:
+          type: integer
