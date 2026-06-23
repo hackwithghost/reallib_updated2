@@ -1,0 +1,219 @@
+Build a complete production-ready web application named **RealLib** with the base route **/reallib**.
+
+Tech Stack:
+
+* Frontend: React + TypeScript + Tailwind CSS
+* Backend: Node.js + Express
+* Database: PostgreSQL (Neon Database)
+* ORM: Drizzle ORM
+* Authentication: JWT + bcrypt
+* QR Generation: qrcode package
+* Deployment Ready
+
+Database Connection:
+
+* Use PostgreSQL Neon Database.
+* Read connection string from DATABASE_URL environment variable.
+* All database queries must use Drizzle ORM.
+
+Project Purpose:
+Create a Library Seat Attendance Management System where each seat has a permanent QR code and different students can be assigned to the same seat at different time slots.
+
+Features:
+
+1. Admin Authentication
+
+* Secure admin login.
+* Dashboard after login.
+* Change password.
+* Logout.
+
+2. Seat Management
+
+* Create seat numbers (Seat 1, Seat 2, etc.).
+* Generate unique QR code for each seat.
+* QR URL format:
+
+/reallib/seat/{seatId}
+
+* Download QR as PNG.
+
+3. Student Management
+
+* Add student.
+* Edit student.
+* Delete student.
+* Student Name
+* Roll Number
+* Phone Number
+* Password/PIN
+* Active Status
+
+4. Time Slot Allocation
+   Admin can assign students to seats based on time.
+
+Example:
+
+Seat 1
+1:00 PM - 4:00 PM → Rahul
+
+Seat 1
+4:00 PM - 6:00 PM → Aman
+
+Seat 1
+6:00 PM - 9:00 PM → Priya
+
+Validation:
+
+* No overlapping slots.
+* Prevent duplicate assignments.
+
+5. QR Scan Page
+   Public page:
+
+/reallib/seat/{seatId}
+
+When opened:
+
+* Detect current server time.
+* Find active student assigned to that seat.
+* Show:
+
+Seat Number
+Student Name
+Time Slot
+
+Button:
+Mark Attendance
+
+If no student assigned:
+
+"No student assigned for current time."
+
+6. Attendance Security
+   When Mark Attendance is clicked:
+
+Ask for:
+
+* Student Roll Number
+* Password/PIN
+
+Verify credentials.
+
+Only assigned student can mark attendance.
+
+If verification succeeds:
+
+* Save attendance record.
+* Prevent duplicate attendance for same date.
+* Show success message.
+
+7. Attendance System
+   Store:
+
+* Student
+* Seat
+* Date
+* Time
+* IP Address
+* Status
+
+Attendance statuses:
+
+* Present
+* Late
+
+Late logic:
+If attendance is marked more than 15 minutes after slot start time, mark Late.
+
+8. Admin Dashboard Analytics
+   Cards:
+
+* Total Students
+* Total Seats
+* Today's Attendance
+* Active Allocations
+
+Charts:
+
+* Daily Attendance
+* Weekly Attendance
+
+9. Reports
+   Filters:
+
+* Date Range
+* Student
+* Seat
+
+Export:
+
+* Excel
+* CSV
+* PDF
+
+10. Database Tables
+
+admins
+students
+seats
+seat_allocations
+attendance_logs
+
+Relationships:
+
+* Student ↔ Allocations
+* Seat ↔ Allocations
+* Student ↔ Attendance
+* Seat ↔ Attendance
+
+11. UI Design
+    Modern glassmorphism dashboard.
+    Responsive mobile-first design.
+    Dark and light mode.
+    Professional library branding.
+    Loading states.
+    Toast notifications.
+    Form validation.
+
+12. Security
+
+* Password hashing with bcrypt.
+* JWT authentication.
+* SQL injection protection.
+* Rate limiting.
+* Helmet security middleware.
+* Input validation using Zod.
+
+13. API Endpoints
+
+/reallib/api/auth/login
+/reallib/api/students
+/reallib/api/seats
+/reallib/api/allocations
+/reallib/api/attendance
+/reallib/api/reports
+
+14. Deployment Requirements
+
+* Neon PostgreSQL support.
+* Environment variables support.
+* Production build scripts.
+* Vercel compatible frontend.
+* Node.js backend deployment ready.
+
+Generate:
+
+* Complete folder structure.
+* Database schema.
+* Drizzle migrations.
+* Backend APIs.
+* React frontend.
+* Tailwind UI.
+* QR generation logic.
+* Attendance verification logic.
+* Dashboard pages.
+* Setup instructions.
+* .env.example file.
+
+The application must be fully functional, production-ready, and use "/reallib" as the application base path throughout the project.
