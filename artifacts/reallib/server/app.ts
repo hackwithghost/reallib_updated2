@@ -15,9 +15,10 @@ app.use(helmet({ contentSecurityPolicy: false }));
 app.use(
   rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 500,
+    max: 5000,
     standardHeaders: true,
     legacyHeaders: false,
+    skip: (req) => !req.path.startsWith("/api"),
   })
 );
 app.use(

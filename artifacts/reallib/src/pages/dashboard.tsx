@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Users, Armchair, ClipboardCheck, Clock, AlertTriangle, BanknoteIcon, UserX, CalendarClock } from "lucide-react";
+import { Users, Armchair, ClipboardCheck, Clock, AlertTriangle, BanknoteIcon, UserX, CalendarClock, MessageCircle } from "lucide-react";
 import { useGetDashboardStats, useGetDailyAttendance, useGetWeeklyAttendance } from "@workspace/api-client-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line } from "recharts";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +46,14 @@ type ExpiringPayment = {
 const authHeaders = () => ({
   Authorization: `Bearer ${localStorage.getItem("reallib_token") || ""}`,
 });
+
+const WHATSAPP_MESSAGE = "Dear student, please pay your library fees now. Your fees payment is still pending. Kindly clear your dues at the earliest.";
+
+function whatsappUrl(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+  const number = digits.length === 10 ? `91${digits}` : digits;
+  return `https://wa.me/${number}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
+}
 
 export default function Dashboard() {
   const { data: stats, isLoading: statsLoading } = useGetDashboardStats();
@@ -297,30 +305,41 @@ export default function Dashboard() {
             <CardContent>
               <div className="divide-y max-h-64 overflow-y-auto pr-1">
                 {unpaidStudents.map(student => (
-                  <div key={student.id} className="flex items-center justify-between py-3">
-                    <div className="flex items-center gap-3">
+                  <div key={student.id} className="flex items-center justify-between py-3 gap-2">
+                    <div className="flex items-center gap-3 min-w-0">
                       <div className={`h-2 w-2 rounded-full shrink-0 ${student.isOverdue ? "bg-destructive" : "bg-yellow-500"}`} />
-                      <div>
-                        <p className="font-medium text-sm">{student.name}</p>
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate">{student.name}</p>
                         <p className="text-xs text-muted-foreground">{student.rollNumber} • {student.phoneNumber}</p>
                       </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      {student.unpaidSince ? (
-                        <>
-                          <p className="text-xs text-muted-foreground">
-                            Since {format(new Date(student.unpaidSince), "MMM d, yyyy")}
-                          </p>
-                          <Badge
-                            variant={student.isOverdue ? "destructive" : "outline"}
-                            className={`text-xs mt-1 ${!student.isOverdue ? "text-yellow-700 border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20" : ""}`}
-                          >
-                            {student.daysUnpaid}d unpaid{student.isOverdue && " — OVERDUE"}
-                          </Badge>
-                        </>
-                      ) : (
-                        <Badge variant="outline" className="text-xs text-yellow-700 border-yellow-400 bg-yellow-50">Unpaid</Badge>
-                      )}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="text-right">
+                        {student.unpaidSince ? (
+                          <>
+                            <p className="text-xs text-muted-foreground">
+                              Since {format(new Date(student.unpaidSince), "MMM d, yyyy")}
+                            </p>
+                            <Badge
+                              variant={student.isOverdue ? "destructive" : "outline"}
+                              className={`text-xs mt-1 ${!student.isOverdue ? "text-yellow-700 border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20" : ""}`}
+                            >
+                              {student.daysUnpaid}d unpaid{student.isOverdue && " — OVERDUE"}
+                            </Badge>
+                          </>
+                        ) : (
+                          <Badge variant="outline" className="text-xs text-yellow-700 border-yellow-400 bg-yellow-50">Unpaid</Badge>
+                        )}
+                      </div>
+                      <a
+                        href={whatsappUrl(student.phoneNumber)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Send WhatsApp reminder"
+                        className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-[#25D366] hover:bg-[#1ebe5d] text-white transition-colors shrink-0"
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                      </a>
                     </div>
                   </div>
                 ))}
