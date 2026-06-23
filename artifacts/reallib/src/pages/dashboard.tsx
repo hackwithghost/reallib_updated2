@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Users, Armchair, ClipboardCheck, Clock, AlertTriangle, BanknoteIcon, UserX } from "lucide-react";
+import { Users, Armchair, ClipboardCheck, Clock, AlertTriangle, BanknoteIcon, UserX, CalendarClock } from "lucide-react";
 import { useGetDashboardStats, useGetDailyAttendance, useGetWeeklyAttendance } from "@workspace/api-client-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line } from "recharts";
 import { Badge } from "@/components/ui/badge";
@@ -33,8 +33,18 @@ type AbsentStudent = {
   createdAt: string;
 };
 
+type ExpiringPayment = {
+  id: number;
+  name: string;
+  rollNumber: string;
+  phoneNumber: string;
+  paidSince: string | null;
+  daysLeft: number;
+  isExpiringSoon: boolean;
+};
+
 const authHeaders = () => ({
-  Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+  Authorization: `Bearer ${localStorage.getItem("reallib_token") || ""}`,
 });
 
 export default function Dashboard() {
@@ -44,6 +54,9 @@ export default function Dashboard() {
 
   const [unpaidStudents, setUnpaidStudents] = useState<UnpaidStudent[]>([]);
   const [unpaidLoading, setUnpaidLoading] = useState(true);
+
+  const [expiringPayments, setExpiringPayments] = useState<ExpiringPayment[]>([]);
+  const [expiringLoading, setExpiringLoading] = useState(true);
 
   const todayStr = new Date().toISOString().split("T")[0];
   const [absentDate, setAbsentDate] = useState(todayStr);
@@ -63,6 +76,18 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
+    const fetchExpiring = async () => {
+      try {
+        const res = await fetch("/api/reallib/dashboard/expiring-payments", { headers: authHeaders() });
+        if (res.ok) setExpiringPayments(await res.json());
+      } catch { /* silent */ } finally {
+        setExpiringLoading(false);
+      }
+    };
+    fetchExpiring();
+  }, []);
+
+  useEffect(() => {
     const fetchAbsent = async () => {
       setAbsentLoading(true);
       try {
@@ -77,6 +102,7 @@ export default function Dashboard() {
   }, [absentDate]);
 
   const overdueStudents = unpaidStudents.filter(s => s.isOverdue);
+  const expiringSoonStudents = expiringPayments.filter(s => s.isExpiringSoon);
 
   return (
     <div className="space-y-8 animate-in fade-in zoom-in duration-500">
@@ -93,6 +119,19 @@ export default function Dashboard() {
             <p className="text-sm mt-0.5 text-destructive/80">
               {overdueStudents.length} student{overdueStudents.length > 1 ? "s have" : " has"} been unpaid for 30+ days:{" "}
               {overdueStudents.map(s => s.name).join(", ")}.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {expiringSoonStudents.length > 0 && (
+        <div className="flex items-start gap-3 p-4 rounded-lg border border-amber-400/40 bg-amber-50 dark:bg-amber-900/10 text-amber-800 dark:text-amber-300">
+          <CalendarClock className="h-5 w-5 mt-0.5 shrink-0" />
+          <div>
+            <p className="font-semibold">Payment Expiring Soon</p>
+            <p className="text-sm mt-0.5 text-amber-700 dark:text-amber-400">
+              {expiringSoonStudents.length} student{expiringSoonStudents.length > 1 ? "s'" : "'s"} monthly payment expires within 7 days:{" "}
+              {expiringSoonStudents.map(s => `${s.name} (${s.daysLeft}d left)`).join(", ")}.
             </p>
           </div>
         </div>
@@ -175,6 +214,74 @@ export default function Dashboard() {
           </Card>
         </div>
       ) : null}
+
+      {/* Monthly Payment Tracker */}
+      <Card className="border-amber-300/50">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <CalendarClock className="h-4 w-4 text-amber-600" />
+            <CardTitle className="text-amber-700 dark:text-amber-400">Monthly Payment Tracker</CardTitle>
+            {!expiringLoading && (
+              <Badge className="text-xs bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900/30 dark:text-amber-400">
+                Auto-reset after 30 days
+              </Badge>
+            )}
+          </div>
+          <CardDescription>
+            Paid students are automatically marked unpaid after 30 days. Toggle payment on the Students page to restart the cycle.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {expiringLoading ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">Loading...</p>
+          ) : expiringPayments.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">No paid students tracked yet.</p>
+          ) : (
+            <div className="divide-y max-h-72 overflow-y-auto pr-1">
+              {expiringPayments
+                .sort((a, b) => a.daysLeft - b.daysLeft)
+                .map(student => (
+                  <div key={student.id} className="flex items-center justify-between py-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`h-2 w-2 rounded-full shrink-0 ${
+                        student.daysLeft <= 3
+                          ? "bg-destructive"
+                          : student.daysLeft <= 7
+                          ? "bg-amber-500"
+                          : "bg-green-500"
+                      }`} />
+                      <div>
+                        <p className="font-medium text-sm">{student.name}</p>
+                        <p className="text-xs text-muted-foreground">{student.rollNumber} • {student.phoneNumber}</p>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      {student.paidSince && (
+                        <p className="text-xs text-muted-foreground">
+                          Paid {format(new Date(student.paidSince), "MMM d, yyyy")}
+                        </p>
+                      )}
+                      <Badge
+                        variant={student.daysLeft <= 3 ? "destructive" : "outline"}
+                        className={`text-xs mt-1 ${
+                          student.daysLeft <= 7 && student.daysLeft > 3
+                            ? "text-amber-700 border-amber-400 bg-amber-50 dark:bg-amber-900/20"
+                            : student.daysLeft > 7
+                            ? "text-green-700 border-green-400 bg-green-50 dark:bg-green-900/20"
+                            : ""
+                        }`}
+                      >
+                        {student.daysLeft <= 0
+                          ? "Expires today"
+                          : `${student.daysLeft}d left`}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">
         {!unpaidLoading && unpaidStudents.length > 0 && (

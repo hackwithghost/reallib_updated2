@@ -115,6 +115,7 @@ router.patch("/students/:id/payment", requireAuth, async (req, res): Promise<voi
   const updateData: Record<string, unknown> = {
     isPaid,
     unpaidSince: isPaid ? null : new Date(),
+    paidSince: isPaid ? new Date() : null,
   };
   const [student] = await db.update(studentsTable).set(updateData).where(eq(studentsTable.id, params.data.id)).returning();
   if (!student) {

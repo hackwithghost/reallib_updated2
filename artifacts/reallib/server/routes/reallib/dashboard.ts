@@ -122,6 +122,41 @@ router.get("/dashboard/absent-students", requireAuth, async (req, res): Promise<
   res.json(result);
 });
 
+router.get("/dashboard/expiring-payments", requireAuth, async (req, res): Promise<void> => {
+  const now = new Date();
+  const in7Days = new Date();
+  in7Days.setDate(now.getDate() + 7);
+  const oneMonthAgo = new Date();
+  oneMonthAgo.setDate(now.getDate() - 30);
+
+  // Students paid but paidSince within last 30 days (not yet expired)
+  const paid = await db.select().from(studentsTable)
+    .where(
+      and(
+        eq(studentsTable.isPaid, true),
+        sql`${studentsTable.paidSince} IS NOT NULL`
+      )
+    );
+
+  const result = paid.map(s => {
+    const paidSinceDate = s.paidSince ? new Date(s.paidSince) : null;
+    const daysLeft = paidSinceDate
+      ? 30 - Math.floor((now.getTime() - paidSinceDate.getTime()) / (1000 * 60 * 60 * 24))
+      : null;
+    return {
+      id: s.id,
+      name: s.name,
+      rollNumber: s.rollNumber,
+      phoneNumber: s.phoneNumber,
+      paidSince: paidSinceDate ? paidSinceDate.toISOString() : null,
+      daysLeft: daysLeft ?? 0,
+      isExpiringSoon: daysLeft !== null && daysLeft <= 7 && daysLeft >= 0,
+    };
+  }).filter(s => s.daysLeft >= 0);
+
+  res.json(result);
+});
+
 router.get("/dashboard/daily-attendance", requireAuth, async (req, res): Promise<void> => {
   const days = parseInt(req.query.days as string) || 7;
   const results: { date: string; count: number; present: number; late: number }[] = [];

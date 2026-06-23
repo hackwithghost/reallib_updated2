@@ -48,7 +48,7 @@ export default function Students() {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+          Authorization: `Bearer ${localStorage.getItem("reallib_token") || ""}`,
         },
         body: JSON.stringify({ isPaid: !currentIsPaid }),
       });
