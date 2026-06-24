@@ -1,9 +1,16 @@
 import { Router, type IRouter } from "express";
-import { eq, sql, count, and, notInArray } from "drizzle-orm";
+import { eq, sql, count, and, inArray } from "drizzle-orm";
 import { db, studentsTable, seatsTable, seatAllocationsTable, attendanceLogsTable } from "@workspace/db";
 import { requireAuth } from "../../lib/auth";
 
 const router: IRouter = Router();
+
+// Calendar-day difference: counts whole days by date, ignoring time-of-day
+function calendarDays(from: Date, to: Date): number {
+  const fromMs = Date.UTC(from.getFullYear(), from.getMonth(), from.getDate());
+  const toMs   = Date.UTC(to.getFullYear(),   to.getMonth(),   to.getDate());
+  return Math.floor((toMs - fromMs) / 86_400_000);
+}
 
 router.get("/dashboard/stats", requireAuth, async (req, res): Promise<void> => {
   const now = new Date();
@@ -51,9 +58,7 @@ router.get("/dashboard/unpaid-students", requireAuth, async (req, res): Promise<
   const now = new Date();
   const result = unpaid.map(s => {
     const unpaidSinceDate = s.unpaidSince ? new Date(s.unpaidSince) : null;
-    const daysUnpaid = unpaidSinceDate
-      ? Math.floor((now.getTime() - unpaidSinceDate.getTime()) / (1000 * 60 * 60 * 24))
-      : 0;
+    const daysUnpaid = unpaidSinceDate ? calendarDays(unpaidSinceDate, now) : 0;
     return {
       id: s.id,
       name: s.name,
@@ -76,7 +81,7 @@ router.get("/dashboard/absent-students", requireAuth, async (req, res): Promise<
 
   // Get all students who attended on this date
   const attendedLogs = await db.select().from(attendanceLogsTable).where(eq(attendanceLogsTable.date, date));
-  const attendedStudentIds = attendedLogs.map(l => l.studentId);
+  const attendedStudentIds = new Set(attendedLogs.map(l => l.studentId));
 
   // Get all actively allocated students (have a seat)
   const allocations = await db
@@ -89,20 +94,21 @@ router.get("/dashboard/absent-students", requireAuth, async (req, res): Promise<
     .from(seatAllocationsTable)
     .where(eq(seatAllocationsTable.isActive, true));
 
-  // Unique allocated student IDs
-  const allocatedStudentIds = [...new Set(allocations.map(a => a.studentId))];
-
-  // Find absent = allocated but not attended
-  const absentStudentIds = allocatedStudentIds.filter(id => !attendedStudentIds.includes(id));
+  // Unique allocated student IDs not in attendance
+  const absentStudentIds = [...new Set(
+    allocations
+      .filter(a => !attendedStudentIds.has(a.studentId))
+      .map(a => a.studentId)
+  )];
 
   if (absentStudentIds.length === 0) {
     res.json([]);
     return;
   }
 
-  // Fetch student details
+  // Fetch student details using inArray (correct Drizzle approach)
   const absentStudents = await db.select().from(studentsTable)
-    .where(sql`${studentsTable.id} = ANY(${absentStudentIds})`);
+    .where(inArray(studentsTable.id, absentStudentIds));
 
   const result = absentStudents.map(s => {
     const alloc = allocations.find(a => a.studentId === s.id);
@@ -124,12 +130,7 @@ router.get("/dashboard/absent-students", requireAuth, async (req, res): Promise<
 
 router.get("/dashboard/expiring-payments", requireAuth, async (req, res): Promise<void> => {
   const now = new Date();
-  const in7Days = new Date();
-  in7Days.setDate(now.getDate() + 7);
-  const oneMonthAgo = new Date();
-  oneMonthAgo.setDate(now.getDate() - 30);
 
-  // Students paid but paidSince within last 30 days (not yet expired)
   const paid = await db.select().from(studentsTable)
     .where(
       and(
@@ -140,17 +141,16 @@ router.get("/dashboard/expiring-payments", requireAuth, async (req, res): Promis
 
   const result = paid.map(s => {
     const paidSinceDate = s.paidSince ? new Date(s.paidSince) : null;
-    const daysLeft = paidSinceDate
-      ? 30 - Math.floor((now.getTime() - paidSinceDate.getTime()) / (1000 * 60 * 60 * 24))
-      : null;
+    const daysPaid = paidSinceDate ? calendarDays(paidSinceDate, now) : 0;
+    const daysLeft = 30 - daysPaid;
     return {
       id: s.id,
       name: s.name,
       rollNumber: s.rollNumber,
       phoneNumber: s.phoneNumber,
       paidSince: paidSinceDate ? paidSinceDate.toISOString() : null,
-      daysLeft: daysLeft ?? 0,
-      isExpiringSoon: daysLeft !== null && daysLeft <= 7 && daysLeft >= 0,
+      daysLeft,
+      isExpiringSoon: daysLeft <= 7 && daysLeft >= 0,
     };
   }).filter(s => s.daysLeft >= 0);
 
