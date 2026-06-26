@@ -32,7 +32,11 @@ export default function EditStudent() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: student, isLoading } = useGetStudent(id, { query: { enabled: !!id } });
+ const { data: student, isLoading } = useGetStudent(id, {
+  query: {
+    enabled: !!id,
+  } as unknown as any,
+});
   const updateStudent = useUpdateStudent();
 
   const form = useForm<StudentFormValues>({

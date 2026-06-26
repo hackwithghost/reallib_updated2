@@ -58,7 +58,7 @@ export default function PublicSeat() {
         seatId: id, 
         rollNumber: data.rollNumber, 
         pin: data.pin,
-        localTime,
+        
       } 
     }, {
       onSuccess: () => {
