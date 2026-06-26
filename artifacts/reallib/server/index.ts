@@ -13,7 +13,7 @@ if (Number.isNaN(port) || port <= 0) {
 
 const staticDir = path.resolve(__dirname, "public");
 app.use("/reallib", express.static(staticDir));
-app.get("/reallib/*", (_req, res) => {
+app.get(/^\/reallib\/.*/, (_req, res) => {
   res.sendFile(path.resolve(staticDir, "index.html"));
 });
 
