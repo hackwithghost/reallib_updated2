@@ -83,6 +83,17 @@ router.patch("/students/:id/face", requireAuth, async (req, res): Promise<void> 
   res.json({ success: true, name: student.name });
 });
 
+router.delete("/students/:id/face", requireAuth, async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+  const [student] = await db.update(studentsTable)
+    .set({ faceDescriptor: null })
+    .where(eq(studentsTable.id, id))
+    .returning();
+  if (!student) { res.status(404).json({ error: "Student not found" }); return; }
+  res.json({ success: true });
+});
+
 router.get("/students/:id", requireAuth, async (req, res): Promise<void> => {
   const params = GetStudentParams.safeParse(req.params);
   if (!params.success) {

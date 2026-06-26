@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { useListStudents, useDeleteStudent, useUpdateStudent, getListStudentsQueryKey } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Edit, Trash2, Camera } from "lucide-react";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { Plus, Search, Edit, Trash2, Camera, UserX } from "lucide-react";
 import { format } from "date-fns";
 
 import { Button } from "@/components/ui/button";
@@ -20,8 +20,38 @@ export default function Students() {
   const [active, setActive] = useState<string>("all");
   const [togglingId, setTogglingId] = useState<number | null>(null);
   const [faceStudent, setFaceStudent] = useState<{ id: number; name: string; rollNumber: string } | null>(null);
+  const [deletingFaceId, setDeletingFaceId] = useState<number | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const { data: faceData, refetch: refetchFaces } = useQuery({
+    queryKey: ["face-descriptors"],
+    queryFn: async () => {
+      const res = await fetch("/api/reallib/students/face-descriptors", {
+        headers: { Authorization: `Bearer ${localStorage.getItem("reallib_token") || ""}` },
+      });
+      if (!res.ok) return [];
+      return res.json() as Promise<{ id: number }[]>;
+    },
+  });
+  const studentsWithFaces = new Set((faceData ?? []).map((s) => s.id));
+
+  const handleDeleteFace = async (id: number, name: string) => {
+    setDeletingFaceId(id);
+    try {
+      const res = await fetch(`/api/reallib/students/${id}/face`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${localStorage.getItem("reallib_token") || ""}` },
+      });
+      if (!res.ok) throw new Error("Failed to remove face");
+      toast({ title: `Face removed for ${name}` });
+      refetchFaces();
+    } catch (err: any) {
+      toast({ title: "Failed to remove face", description: err.message, variant: "destructive" });
+    } finally {
+      setDeletingFaceId(null);
+    }
+  };
 
   const { data: students, isLoading } = useListStudents({
     search: search || undefined,
@@ -164,11 +194,23 @@ export default function Students() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
+                      {studentsWithFaces.has(student.id) && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-amber-500 hover:text-destructive"
+                          title="Remove registered face"
+                          disabled={deletingFaceId === student.id}
+                          onClick={() => handleDeleteFace(student.id, student.name)}
+                        >
+                          <UserX className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-muted-foreground hover:text-primary"
-                        title="Register face for attendance"
+                        title={studentsWithFaces.has(student.id) ? "Re-register face" : "Register face for attendance"}
                         onClick={() => setFaceStudent({ id: student.id, name: student.name, rollNumber: student.rollNumber })}
                       >
                         <Camera className="h-4 w-4" />
