@@ -10,8 +10,10 @@ import {
 } from "@workspace/api-zod";
 import { requireAuth } from "../../lib/auth";
 
-const DOMAINS = process.env.REPLIT_DOMAINS?.split(",")[0];
-const BASE_URL = DOMAINS ? `https://${DOMAINS}` : "http://localhost:80";
+const BASE_URL =
+  process.env.BASE_URL ||
+  (process.env.RENDER_EXTERNAL_URL ??
+    `http://localhost:${process.env.PORT || 3000}`);
 
 async function generateQrUrl(seatId: number): Promise<string> {
   const url = `${BASE_URL}/reallib/seat/${seatId}`;
