@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { useListStudents, useDeleteStudent, useUpdateStudent, getListStudentsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Edit, Trash2 } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Camera } from "lucide-react";
 import { format } from "date-fns";
 
 import { Button } from "@/components/ui/button";
@@ -13,11 +13,13 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import FaceRegisterModal from "@/components/face-register-modal";
 
 export default function Students() {
   const [search, setSearch] = useState("");
   const [active, setActive] = useState<string>("all");
   const [togglingId, setTogglingId] = useState<number | null>(null);
+  const [faceStudent, setFaceStudent] = useState<{ id: number; name: string; rollNumber: string } | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -160,33 +162,44 @@ export default function Students() {
                   <TableCell className="text-muted-foreground text-sm">
                     {format(new Date(student.createdAt), 'MMM d, yyyy')}
                   </TableCell>
-                  <TableCell className="text-right space-x-2">
-                    <Link href={`/students/${student.id}/edit`}>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <Edit className="h-4 w-4" />
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-primary"
+                        title="Register face for attendance"
+                        onClick={() => setFaceStudent({ id: student.id, name: student.name, rollNumber: student.rollNumber })}
+                      >
+                        <Camera className="h-4 w-4" />
                       </Button>
-                    </Link>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
-                          <Trash2 className="h-4 w-4" />
+                      <Link href={`/students/${student.id}/edit`}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <Edit className="h-4 w-4" />
                         </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Student?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will permanently delete {student.name} and their attendance records.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDelete(student.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                      </Link>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Student?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently delete {student.name} and their attendance records.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDelete(student.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -200,6 +213,18 @@ export default function Students() {
           </TableBody>
         </Table>
       </div>
+
+      {faceStudent && (
+        <FaceRegisterModal
+          student={faceStudent}
+          open={!!faceStudent}
+          onClose={() => setFaceStudent(null)}
+          onSuccess={() => {
+            toast({ title: `Face registered for ${faceStudent.name}` });
+            setFaceStudent(null);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import bcrypt from "bcryptjs";
-import { eq, ilike, and, type SQL } from "drizzle-orm";
+import { eq, ilike, and, isNotNull, type SQL } from "drizzle-orm";
 import { db, studentsTable } from "@workspace/db";
 import {
   CreateStudentBody,
@@ -53,6 +53,34 @@ router.post("/students", requireAuth, async (req, res): Promise<void> => {
     createdAt: student.createdAt.toISOString(),
     unpaidSince: student.unpaidSince ? student.unpaidSince.toISOString() : null,
   });
+});
+
+// Must be before /:id to avoid Express treating "face-descriptors" as an id param
+router.get("/students/face-descriptors", requireAuth, async (req, res): Promise<void> => {
+  const rows = await db.select({
+    id: studentsTable.id,
+    name: studentsTable.name,
+    rollNumber: studentsTable.rollNumber,
+    faceDescriptor: studentsTable.faceDescriptor,
+  }).from(studentsTable).where(
+    and(isNotNull(studentsTable.faceDescriptor), eq(studentsTable.isActive, true))
+  );
+  res.json(rows);
+});
+
+router.patch("/students/:id/face", requireAuth, async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+  const { descriptor } = req.body as { descriptor: number[] };
+  if (!descriptor || !Array.isArray(descriptor)) {
+    res.status(400).json({ error: "descriptor must be a number array" }); return;
+  }
+  const [student] = await db.update(studentsTable)
+    .set({ faceDescriptor: JSON.stringify(descriptor) })
+    .where(eq(studentsTable.id, id))
+    .returning();
+  if (!student) { res.status(404).json({ error: "Student not found" }); return; }
+  res.json({ success: true, name: student.name });
 });
 
 router.get("/students/:id", requireAuth, async (req, res): Promise<void> => {

@@ -104,4 +104,69 @@ router.post("/attendance", async (req, res): Promise<void> => {
   });
 });
 
+// Admin-side attendance marking (no PIN required — admin JWT auth only)
+router.post("/attendance/admin-mark", requireAuth, async (req, res): Promise<void> => {
+  const { studentId, seatId } = req.body as { studentId: number; seatId: number };
+  if (!studentId || !seatId) {
+    res.status(400).json({ error: "studentId and seatId required" });
+    return;
+  }
+
+  const now = new Date();
+  const today = now.toISOString().split("T")[0];
+  const localTime = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
+
+  const [student] = await db.select().from(studentsTable).where(eq(studentsTable.id, studentId));
+  const [seat] = await db.select().from(seatsTable).where(eq(seatsTable.id, seatId));
+
+  if (!student) {
+    res.status(404).json({ error: "Student not found" });
+    return;
+  }
+
+  // Already marked today for any seat?
+  const existing = await db.select().from(attendanceLogsTable)
+    .where(and(eq(attendanceLogsTable.studentId, studentId), eq(attendanceLogsTable.date, today)));
+  if (existing.length > 0) {
+    res.json({ alreadyMarked: true, studentName: student.name, rollNumber: student.rollNumber, seatNumber: seat?.seatNumber, status: existing[0].status });
+    return;
+  }
+
+  // Find active allocation for this student
+  const allocations = await db.select().from(seatAllocationsTable)
+    .where(and(eq(seatAllocationsTable.studentId, studentId), eq(seatAllocationsTable.isActive, true)));
+  const currentAllocation = allocations.find(a => a.startTime <= localTime && a.endTime >= localTime) ?? allocations[0] ?? null;
+
+  const slotStart = currentAllocation?.startTime;
+  let status = "present";
+  if (slotStart) {
+    const [sh, sm] = slotStart.split(":").map(Number);
+    const lateThreshold = new Date(now);
+    lateThreshold.setHours(sh, sm + 15, 0, 0);
+    status = now > lateThreshold ? "late" : "present";
+  }
+
+  const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ?? req.socket.remoteAddress ?? "";
+  const [log] = await db.insert(attendanceLogsTable).values({
+    studentId,
+    seatId,
+    allocationId: currentAllocation?.id ?? null,
+    date: today,
+    markedAt: now,
+    status,
+    ipAddress: ip,
+  }).returning();
+
+  res.status(201).json({
+    ...log,
+    markedAt: log.markedAt.toISOString(),
+    createdAt: log.createdAt.toISOString(),
+    studentName: student.name,
+    rollNumber: student.rollNumber,
+    seatNumber: seat?.seatNumber,
+    status,
+    alreadyMarked: false,
+  });
+});
+
 export default router;

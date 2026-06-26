@@ -12,6 +12,7 @@ export const studentsTable = pgTable("students", {
   isPaid: boolean("is_paid").notNull().default(true),
   unpaidSince: timestamp("unpaid_since", { withTimezone: true }),
   paidSince: timestamp("paid_since", { withTimezone: true }).defaultNow(),
+  faceDescriptor: text("face_descriptor"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
